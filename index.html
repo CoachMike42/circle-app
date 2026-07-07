@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f1117">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Circle">
+<title>Circle — Social Tracker</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg">
+<link rel="apple-touch-icon" href="icon.svg">
+<style>
+  :root{
+    --bg:#0f1117; --card:#181b24; --card2:#20242f; --accent:#8b5cf6; --accent2:#a78bfa;
+    --warn:#f87171; --gold:#fbbf24; --text:#f2f2f7; --muted:#8b8fa3; --radius:18px;
+    --border:#2a2e3d;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;height:100%;}
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    display:flex; justify-content:center;
+  }
+  #app{ width:100%; max-width:480px; height:100vh; display:flex; flex-direction:column;
+    padding:env(safe-area-inset-top,0) 16px 0; position:relative; overflow:hidden; }
+  .topbar{ display:flex; align-items:center; justify-content:space-between; padding:16px 0 10px; }
+  .brand{font-weight:800; font-size:19px; display:flex; align-items:center; gap:8px;}
+  .brand .dot{width:10px;height:10px;border-radius:50%;background:var(--accent);}
+  .iconbtn{ background:var(--card); border:1px solid var(--border); color:var(--text); width:38px; height:38px;
+    border-radius:12px; font-size:17px; display:flex; align-items:center; justify-content:center; }
+  #screen{flex:1; padding-bottom:100px; overflow-y:auto;}
+  .hidden{display:none !important;}
+
+  h2.section-title{font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:18px 0 8px; font-weight:700;}
+  .card{background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:14px;}
+  .card + .card{margin-top:10px;}
+
+  input[type=text], input[type=number], input[type=date], input[type=time], textarea, select{
+    width:100%; background:var(--card2); border:1px solid var(--border); color:var(--text);
+    border-radius:12px; padding:12px; font-size:15px; font-family:inherit;
+  }
+  textarea{resize:none; min-height:64px;}
+  label.field-label{font-size:13px; font-weight:600; color:var(--muted); display:block; margin:14px 0 6px;}
+  label.field-label:first-child{margin-top:0;}
+
+  .primary-btn{ background:var(--accent); color:#fff; border:none; padding:14px; width:100%;
+    border-radius:14px; font-size:15px; font-weight:800; margin-top:16px; }
+  .primary-btn:disabled{opacity:.4;}
+  .ghost-btn{ background:transparent; color:var(--muted); border:none; padding:12px;
+    width:100%; font-size:14px; }
+  .warn-btn{ background:rgba(248,113,113,.12); color:var(--warn); border:1px solid rgba(248,113,113,.3); padding:12px; width:100%;
+    border-radius:14px; font-size:14px; font-weight:700; margin-top:8px; }
+
+  .chiprow{display:flex; flex-wrap:wrap; gap:8px;}
+  .chip{ background:var(--card2); border:1px solid var(--border); color:var(--text); padding:9px 13px;
+    border-radius:20px; font-size:13px; font-weight:600; display:flex; align-items:center; gap:6px; }
+  .chip.selected{ background:var(--accent); color:#fff; border-color:var(--accent); }
+
+  /* bottom nav */
+  .navbar{ position:fixed; bottom:0; left:50%; transform:translateX(-50%); width:100%; max-width:480px;
+    background:rgba(24,27,36,.92); backdrop-filter:blur(10px); border-top:1px solid var(--border);
+    display:flex; padding:8px 6px calc(8px + env(safe-area-inset-bottom,0)); z-index:20; }
+  .navitem{ flex:1; display:flex; flex-direction:column; align-items:center; gap:2px; padding:6px 0;
+    color:var(--muted); font-size:10px; font-weight:700; background:none; border:none; }
+  .navitem .navicon{font-size:20px;}
+  .navitem.active{color:var(--accent2);}
+
+  .fab{ position:absolute; right:16px; bottom:calc(78px + env(safe-area-inset-bottom,0)); width:54px; height:54px;
+    border-radius:50%; background:var(--accent); color:#fff; font-size:26px; border:none;
+    display:flex; align-items:center; justify-content:center; box-shadow:0 6px 18px rgba(139,92,246,.5); z-index:21; }
+
+  /* modal */
+  .overlay{ position:fixed; inset:0; background:rgba(0,0,0,.55); display:flex; align-items:flex-end;
+    justify-content:center; z-index:50; }
+  .sheet{ width:100%; max-width:480px; background:var(--bg); border-radius:22px 22px 0 0; padding:16px 18px calc(20px + env(safe-area-inset-bottom,0));
+    max-height:88vh; overflow-y:auto; border:1px solid var(--border); border-bottom:none; }
+  .sheet-handle{width:38px; height:4px; background:var(--border); border-radius:2px; margin:0 auto 14px;}
+  .sheet-title{font-size:18px; font-weight:800; margin-bottom:4px;}
+
+  .row-between{display:flex; align-items:center; justify-content:space-between;}
+  .muted{color:var(--muted);}
+  .small{font-size:12px;}
+
+  /* person / interaction list rows */
+  .list-row{ display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid var(--border); }
+  .list-row:last-child{border-bottom:none;}
+  .avatar{ width:42px; height:42px; border-radius:50%; background:var(--card2); color:var(--accent2);
+    display:flex; align-items:center; justify-content:center; font-weight:800; font-size:15px; flex-shrink:0; border:1px solid var(--border); }
+  .row-title{font-weight:700; font-size:14.5px;}
+  .row-sub{font-size:12.5px; color:var(--muted); margin-top:2px;}
+  .tag-badge{ font-size:10px; font-weight:700; padding:2px 8px; border-radius:10px; display:inline-block; }
+  .tag-Family{background:rgba(251,113,133,.15); color:#fb7185;}
+  .tag-Friend{background:rgba(139,92,246,.15); color:#a78bfa;}
+  .tag-Coworker{background:rgba(56,189,248,.15); color:#38bdf8;}
+  .tag-Other{background:rgba(148,163,184,.15); color:#94a3b8;}
+  .overdue-dot{width:8px;height:8px;border-radius:50%; background:var(--warn); flex-shrink:0;}
+
+  /* stat cards */
+  .stat-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .stat-card{background:var(--card); border:1px solid var(--border); border-radius:16px; padding:14px;}
+  .stat-num{font-size:26px; font-weight:800;}
+  .stat-label{font-size:12px; color:var(--muted); margin-top:2px;}
+
+  /* bar chart */
+  .barchart{display:flex; align-items:flex-end; gap:8px; height:120px; padding-top:10px;}
+  .barchart .barcol{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%;}
+  .barchart .bar{width:100%; max-width:28px; background:var(--accent); border-radius:6px 6px 0 0; min-height:3px;}
+  .barchart .barlabel{font-size:10px; color:var(--muted); margin-top:6px;}
+  .barchart .barval{font-size:10px; color:var(--text); font-weight:700; margin-bottom:3px;}
+
+  .typebar-row{margin-bottom:10px;}
+  .typebar-track{background:var(--card2); border-radius:8px; height:8px; overflow:hidden; margin-top:4px;}
+  .typebar-fill{height:100%; background:var(--accent);}
+
+  /* heatmap */
+  .heatmap{display:grid; grid-auto-flow:column; grid-template-rows:repeat(7,1fr); gap:3px; overflow-x:auto; padding:6px 0;}
+  .heat-cell{width:11px;height:11px;border-radius:3px; background:var(--card2);}
+
+  .search-bar{margin-bottom:10px;}
+  .empty-state{text-align:center; padding:40px 10px; color:var(--muted);}
+  .empty-state .big{font-size:36px; margin-bottom:8px;}
+
+  .stars{display:flex; gap:4px;}
+  .star{font-size:24px; color:var(--border); cursor:pointer;}
+  .star.on{color:var(--gold);}
+
+  .backrow{display:flex; align-items:center; gap:10px; padding:6px 0 4px;}
+  .backrow button{background:none; border:none; color:var(--muted); font-size:20px; padding:4px;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="topbar">
+    <div class="brand"><span class="dot"></span>Circle</div>
+    <button class="iconbtn" id="searchToggleBtn" title="Search">🔎</button>
+  </div>
+  <div id="screen"></div>
+  <button class="fab hidden" id="fabBtn">+</button>
+  <div class="navbar">
+    <button class="navitem active" data-tab="log"><span class="navicon">🏠</span>Log</button>
+    <button class="navitem" data-tab="people"><span class="navicon">👥</span>People</button>
+    <button class="navitem" data-tab="stats"><span class="navicon">📊</span>Stats</button>
+    <button class="navitem" data-tab="settings"><span class="navicon">⚙️</span>Settings</button>
+  </div>
+</div>
+
+<div id="modalRoot"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------- state ---------- */
+  var STORAGE_KEY = "circle_data_v1";
+  var state = loadState();
+  function loadState(){
+    try{
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if(raw){ var d = JSON.parse(raw); if(!d.people) d.people=[]; if(!d.interactions) d.interactions=[]; return d; }
+    }catch(e){}
+    return { people: [], interactions: [] };
+  }
+  function saveState(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+  function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+
+  var TYPES = [
+    {id:"meetup", label:"In person", icon:"🧑‍🤝‍🧑"},
+    {id:"call", label:"Call", icon:"📞"},
+    {id:"video", label:"Video call", icon:"💻"},
+    {id:"text", label:"Text / chat", icon:"💬"},
+    {id:"event", label:"Group hangout", icon:"🎉"},
+    {id:"other", label:"Other", icon:"✉️"}
+  ];
+  function typeInfo(id){ return TYPES.find(function(t){return t.id===id;}) || TYPES[5]; }
+
+  var TAGS = ["Family","Friend","Coworker","Other"];
+  var DEFAULT_TARGET_DAYS = 30;
+
+  /* ---------- date helpers ---------- */
+  function pad(n){ return n<10 ? "0"+n : ""+n; }
+  function nowLocalDate(){ var d=new Date(); return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); }
+  function nowLocalTime(){ var d=new Date(); return pad(d.getHours())+":"+pad(d.getMinutes()); }
+  function combineDateTime(date, time){ return date + "T" + (time || "00:00"); }
+  function parseDT(iso){ return new Date(iso); }
+  function fmtDateShort(iso){
+    var d = parseDT(iso);
+    return d.toLocaleDateString(undefined, {month:"short", day:"numeric"});
+  }
+  function fmtDateFull(iso){
+    var d = parseDT(iso);
+    return d.toLocaleDateString(undefined, {weekday:"short", month:"short", day:"numeric", year:"numeric"});
+  }
+  function fmtTime(iso){
+    var d = parseDT(iso);
+    return d.toLocaleTimeString(undefined, {hour:"numeric", minute:"2-digit"});
+  }
+  function daysSince(iso){
+    var then = parseDT(iso); var now = new Date();
+    var a = new Date(then.getFullYear(), then.getMonth(), then.getDate());
+    var b = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return Math.round((b-a)/86400000);
+  }
+  function timeAgo(iso){
+    var d = daysSince(iso);
+    if(d<=0) return "Today";
+    if(d===1) return "Yesterday";
+    if(d<7) return d+"d ago";
+    if(d<30) return Math.floor(d/7)+"w ago";
+    if(d<365) return Math.floor(d/30)+"mo ago";
+    return Math.floor(d/365)+"y ago";
+  }
+  function isSameMonth(iso, ref){
+    var d=parseDT(iso), r=ref||new Date();
+    return d.getFullYear()===r.getFullYear() && d.getMonth()===r.getMonth();
+  }
+  function monthKey(iso){ var d=parseDT(iso); return d.getFullYear()+"-"+pad(d.getMonth()+1); }
+  function monthLabel(key){
+    var parts=key.split("-"); var d=new Date(parseInt(parts[0]),parseInt(parts[1])-1,1);
+    return d.toLocaleDateString(undefined,{month:"short"});
+  }
+  function dayKey(iso){ var d=parseDT(iso); return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); }
+
+  /* ---------- derived data helpers ---------- */
+  function getPerson(id){ return state.people.find(function(p){return p.id===id;}); }
+  function personInteractions(id){
+    return state.interactions.filter(function(it){ return it.personIds.indexOf(id)>=0; })
+      .sort(function(a,b){ return b.date.localeCompare(a.date); });
+  }
+  function lastContactDate(id){
+    var list = personInteractions(id);
+    return list.length ? list[0].date : null;
+  }
+  function initials(name){
+    var parts = name.trim().split(/\s+/);
+    var s = parts[0] ? parts[0][0] : "?";
+    if(parts.length>1) s += parts[1][0];
+    return s.toUpperCase();
+  }
+
+  /* ---------- app / nav state ---------- */
+  var currentTab = "log";
+  var selectedPersonId = null;
+  var searchOpen = false;
+  var searchQuery = "";
+
+  function switchTab(tab){
+    currentTab = tab; selectedPersonId = null; searchOpen = false; searchQuery = "";
+    document.querySelectorAll(".navitem").forEach(function(el){
+      el.classList.toggle("active", el.dataset.tab===tab);
+    });
+    render();
+  }
+  function openPerson(id){ selectedPersonId = id; render(); }
+
+  document.querySelectorAll(".navitem").forEach(function(el){
+    el.addEventListener("click", function(){ switchTab(el.dataset.tab); });
+  });
+  document.getElementById("searchToggleBtn").addEventListener("click", function(){
+    searchOpen = !searchOpen; if(!searchOpen) searchQuery=""; render();
+  });
+  document.getElementById("fabBtn").addEventListener("click", function(){
+    if(currentTab==="people" && !selectedPersonId){ openPersonModal(null); }
+    else { openInteractionModal(null, selectedPersonId); }
+  });
+
+  /* ---------- render dispatch ---------- */
+  function render(){
+    var screen = document.getElementById("screen");
+    var fab = document.getElementById("fabBtn");
+    fab.classList.remove("hidden");
+    if(currentTab==="settings"){ fab.classList.add("hidden"); }
+
+    if(currentTab==="log"){ screen.innerHTML = renderLog(); }
+    else if(currentTab==="people"){
+      screen.innerHTML = selectedPersonId ? renderPersonDetail(selectedPersonId) : renderPeople();
+    }
+    else if(currentTab==="stats"){ screen.innerHTML = renderStats(); }
+    else if(currentTab==="settings"){ screen.innerHTML = renderSettings(); }
+
+    wireScreenEvents();
+  }
+
+  /* ---------- LOG TAB ---------- */
+  function renderLog(){
+    var html = "";
+    if(searchOpen){
+      html += '<div class="search-bar"><input type="text" id="searchInput" placeholder="Search interactions or people..." value="'+escAttr(searchQuery)+'"></div>';
+    }
+    var list = state.interactions.slice().sort(function(a,b){ return b.date.localeCompare(a.date); });
+    if(searchQuery){
+      var q = searchQuery.toLowerCase();
+      list = list.filter(function(it){
+        var names = it.personIds.map(function(pid){ var p=getPerson(pid); return p?p.name.toLowerCase():""; }).join(" ");
+        return names.indexOf(q)>=0 || (it.notes||"").toLowerCase().indexOf(q)>=0 || typeInfo(it.type).label.toLowerCase().indexOf(q)>=0;
+      });
+    }
+
+    var monthCount = state.interactions.filter(function(it){ return isSameMonth(it.date); }).length;
+    var peopleThisMonth = uniqueCount(state.interactions.filter(function(it){ return isSameMonth(it.date); }));
+    html += '<div class="stat-grid">'
+      + '<div class="stat-card"><div class="stat-num">'+monthCount+'</div><div class="stat-label">Interactions this month</div></div>'
+      + '<div class="stat-card"><div class="stat-num">'+peopleThisMonth+'</div><div class="stat-label">People connected with</div></div>'
+      + '</div>';
+
+    html += '<h2 class="section-title">Recent</h2>';
+    if(list.length===0){
+      html += '<div class="empty-state"><div class="big">👋</div>'+(searchQuery? 'No matches found.' : 'No interactions logged yet.<br>Tap + to log your first one.')+'</div>';
+    } else {
+      html += '<div class="card">';
+      html += list.slice(0,80).map(function(it){ return interactionRow(it); }).join("");
+      html += '</div>';
+    }
+    return html;
+  }
+
+  function uniqueCount(list){
+    var s = {};
+    list.forEach(function(it){ it.personIds.forEach(function(pid){ s[pid]=1; }); });
+    return Object.keys(s).length;
+  }
+
+  function interactionRow(it){
+    var names = it.personIds.map(function(pid){ var p=getPerson(pid); return p ? p.name : "(removed)"; }).join(", ");
+    var ti = typeInfo(it.type);
+    var stars = it.quality ? ' <span class="small muted">'+'★'.repeat(it.quality)+'</span>' : "";
+    return '<div class="list-row" data-action="edit-interaction" data-id="'+it.id+'">'
+      + '<div class="avatar">'+ti.icon+'</div>'
+      + '<div style="flex:1; min-width:0;">'
+        + '<div class="row-title">'+escHtml(names || "Unknown")+'</div>'
+        + '<div class="row-sub">'+ti.label+' · '+fmtDateShort(it.date)+', '+fmtTime(it.date)+stars+(it.notes ? ' · '+escHtml(truncate(it.notes,40)) : '')+'</div>'
+      + '</div>'
+      + '</div>';
+  }
+  function truncate(s,n){ return s.length>n ? s.slice(0,n)+"…" : s; }
+
+  /* ---------- PEOPLE TAB ---------- */
+  function renderPeople(){
+    var html = "";
+    if(searchOpen){
+      html += '<div class="search-bar"><input type="text" id="searchInput" placeholder="Search people..." value="'+escAttr(searchQuery)+'"></div>';
+    }
+    var people = state.people.slice();
+    if(searchQuery){
+      var q = searchQuery.toLowerCase();
+      people = people.filter(function(p){ return p.name.toLowerCase().indexOf(q)>=0; });
+    }
+    people.sort(function(a,b){
+      var la = lastContactDate(a.id), lb = lastContactDate(b.id);
+      if(!la && !lb) return a.name.localeCompare(b.name);
+      if(!la) return -1; if(!lb) return 1;
+      return la.localeCompare(lb);
+    });
+
+    html += '<h2 class="section-title">People ('+state.people.length+')</h2>';
+    if(people.length===0){
+      html += '<div class="empty-state"><div class="big">🧑‍🤝‍🧑</div>'+(searchQuery?'No matches.':'No people added yet.<br>Tap + to add someone.')+'</div>';
+    } else {
+      html += '<div class="card">';
+      html += people.map(personRow).join("");
+      html += '</div>';
+    }
+    return html;
+  }
+
+  function personRow(p){
+    var last = lastContactDate(p.id);
+    var target = p.targetDays || DEFAULT_TARGET_DAYS;
+    var overdue = last ? daysSince(last) > target : true;
+    var sub = last ? ("Last contact: "+timeAgo(last)) : "Never logged";
+    return '<div class="list-row" data-action="open-person" data-id="'+p.id+'">'
+      + '<div class="avatar">'+initials(p.name)+'</div>'
+      + '<div style="flex:1; min-width:0;">'
+        + '<div class="row-title">'+escHtml(p.name)+' <span class="tag-badge tag-'+p.tag+'">'+p.tag+'</span></div>'
+        + '<div class="row-sub">'+sub+'</div>'
+      + '</div>'
+      + (overdue ? '<div class="overdue-dot" title="Overdue"></div>' : '')
+      + '</div>';
+  }
+
+  /* ---------- PERSON DETAIL ---------- */
+  function renderPersonDetail(id){
+    var p = getPerson(id);
+    if(!p){ selectedPersonId=null; return renderPeople(); }
+    var list = personInteractions(id);
+    var thisMonth = list.filter(function(it){ return isSameMonth(it.date); }).length;
+    var avgGap = "—";
+    if(list.length>1){
+      var sorted = list.slice().sort(function(a,b){ return a.date.localeCompare(b.date); });
+      var gaps=[];
+      for(var i=1;i<sorted.length;i++){ gaps.push(Math.abs(daysSince(sorted[i-1].date)-daysSince(sorted[i].date))); }
+      var sum=gaps.reduce(function(a,b){return a+b;},0);
+      avgGap = Math.round(sum/gaps.length) + "d";
+    }
+    var html = '<div class="backrow"><button data-action="back-people">‹</button><div class="muted small">People</div></div>';
+    html += '<div class="card" style="text-align:center; padding:20px 14px;">'
+      + '<div class="avatar" style="width:64px;height:64px;font-size:22px;margin:0 auto 10px;">'+initials(p.name)+'</div>'
+      + '<div style="font-size:19px;font-weight:800;">'+escHtml(p.name)+'</div>'
+      + '<div class="tag-badge tag-'+p.tag+'" style="margin-top:6px; display:inline-block;">'+p.tag+'</div>'
+      + (p.notes ? '<div class="muted small" style="margin-top:10px;">'+escHtml(p.notes)+'</div>' : '')
+      + '</div>';
+
+    html += '<div class="stat-grid" style="margin-top:10px;">'
+      + '<div class="stat-card"><div class="stat-num">'+list.length+'</div><div class="stat-label">Total interactions</div></div>'
+      + '<div class="stat-card"><div class="stat-num">'+thisMonth+'</div><div class="stat-label">This month</div></div>'
+      + '<div class="stat-card"><div class="stat-num">'+avgGap+'</div><div class="stat-label">Avg. days between</div></div>'
+      + '<div class="stat-card"><div class="stat-num">'+(p.targetDays||DEFAULT_TARGET_DAYS)+'d</div><div class="stat-label">Target frequency</div></div>'
+      + '</div>';
+
+    html += '<button class="primary-btn" data-action="edit-person" data-id="'+p.id+'">Edit person</button>';
+
+    html += '<h2 class="section-title">History</h2>';
+    if(list.length===0){
+      html += '<div class="empty-state"><div class="big">📭</div>No interactions logged with '+escHtml(p.name)+' yet.</div>';
+    } else {
+      html += '<div class="card">' + list.map(interactionRow).join("") + '</div>';
+    }
+    return html;
+  }
+
+  /* ---------- STATS TAB ---------- */
+  function renderStats(){
+    var html = "";
+    var now = new Date();
+    var monthInts = state.interactions.filter(function(it){ return isSameMonth(it.date); });
+
+    // streak: consecutive weeks (Sun-Sat) with >=1 interaction, ending this week
+    var streak = computeStreak();
+
+    html += '<div class="stat-grid">'
+      + '<div class="stat-card"><div class="stat-num">'+monthInts.length+'</div><div class="stat-label">This month</div></div>'
+      + '<div class="stat-card"><div class="stat-num">'+uniqueCount(monthInts)+'</div><div class="stat-label">People this month</div></div>'
+      + '<div class="stat-card"><div class="stat-num">'+state.interactions.length+'</div><div class="stat-label">All-time total</div></div>'
+      + '<div class="stat-card"><div class="stat-num">'+streak+'🔥</div><div class="stat-label">Week streak</div></div>'
+      + '</div>';
+
+    // last 6 months bar chart
+    html += '<h2 class="section-title">Interactions per month</h2><div class="card">';
+    var months = [];
+    for(var i=5;i>=0;i--){
+      var d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+      months.push(d.getFullYear()+"-"+pad(d.getMonth()+1));
+    }
+    var counts = months.map(function(mk){
+      return state.interactions.filter(function(it){ return monthKey(it.date)===mk; }).length;
+    });
+    var max = Math.max.apply(null, counts.concat([1]));
+    html += '<div class="barchart">' + months.map(function(mk,i){
+      var h = Math.max(4, Math.round((counts[i]/max)*90));
+      return '<div class="barcol"><div class="barval">'+counts[i]+'</div><div class="bar" style="height:'+h+'px;"></div><div class="barlabel">'+monthLabel(mk)+'</div></div>';
+    }).join("") + '</div></div>';
+
+    // type breakdown
+    html += '<h2 class="section-title">By interaction type</h2><div class="card">';
+    var total = state.interactions.length || 1;
+    var typeRows = TYPES.map(function(t){
+      var c = state.interactions.filter(function(it){ return it.type===t.id; }).length;
+      return {t:t, c:c, pct: Math.round((c/total)*100)};
+    }).sort(function(a,b){ return b.c-a.c; });
+    if(state.interactions.length===0){
+      html += '<div class="empty-state small">No data yet.</div>';
+    } else {
+      html += typeRows.map(function(r){
+        return '<div class="typebar-row"><div class="row-between small"><span>'+r.t.icon+' '+r.t.label+'</span><span class="muted">'+r.c+'</span></div>'
+          + '<div class="typebar-track"><div class="typebar-fill" style="width:'+r.pct+'%;"></div></div></div>';
+      }).join("");
+    }
+    html += '</div>';
+
+    // top people
+    html += '<h2 class="section-title">Top people (all time)</h2><div class="card">';
+    var counted = state.people.map(function(p){ return {p:p, c:personInteractions(p.id).length}; })
+      .filter(function(x){ return x.c>0; })
+      .sort(function(a,b){ return b.c-a.c; }).slice(0,8);
+    if(counted.length===0){
+      html += '<div class="empty-state small">No data yet.</div>';
+    } else {
+      html += counted.map(function(x,i){
+        return '<div class="list-row" data-action="open-person-from-stats" data-id="'+x.p.id+'">'
+          + '<div class="avatar">'+(i+1)+'</div>'
+          + '<div style="flex:1;"><div class="row-title">'+escHtml(x.p.name)+'</div></div>'
+          + '<div class="muted small">'+x.c+' logged</div></div>';
+      }).join("");
+    }
+    html += '</div>';
+
+    // reconnect list
+    var overdue = state.people.map(function(p){
+      var last = lastContactDate(p.id);
+      var target = p.targetDays || DEFAULT_TARGET_DAYS;
+      var d = last ? daysSince(last) : Infinity;
+      return {p:p, d:d, target:target, over: d - target};
+    }).filter(function(x){ return x.over>0; }).sort(function(a,b){ return b.over-a.over; }).slice(0,8);
+
+    html += '<h2 class="section-title">Time to reconnect</h2><div class="card">';
+    if(overdue.length===0){
+      html += '<div class="empty-state small">🎉 You\'re all caught up!</div>';
+    } else {
+      html += overdue.map(function(x){
+        var sub = x.d===Infinity ? "Never logged" : (x.d+"d since last contact (target "+x.target+"d)");
+        return '<div class="list-row" data-action="open-person-from-stats" data-id="'+x.p.id+'">'
+          + '<div class="avatar">'+initials(x.p.name)+'</div>'
+          + '<div style="flex:1;"><div class="row-title">'+escHtml(x.p.name)+'</div><div class="row-sub">'+sub+'</div></div>'
+          + '<div class="overdue-dot"></div></div>';
+      }).join("");
+    }
+    html += '</div>';
+
+    // heatmap - last 12 weeks
+    html += '<h2 class="section-title">Activity (last 12 weeks)</h2><div class="card">';
+    html += '<div class="heatmap">' + buildHeatmap() + '</div>';
+    html += '</div>';
+
+    return html;
+  }
+
+  function computeStreak(){
+    var weeks = {};
+    state.interactions.forEach(function(it){
+      var d = parseDT(it.date);
+      var weekStart = new Date(d); weekStart.setDate(d.getDate()-d.getDay());
+      var wk = weekStart.getFullYear()+"-"+pad(weekStart.getMonth()+1)+"-"+pad(weekStart.getDate());
+      weeks[wk]=true;
+    });
+    var streak=0;
+    var cursor = new Date();
+    for(var i=0;i<520;i++){
+      var weekStart = new Date(cursor); weekStart.setDate(cursor.getDate()-cursor.getDay()-(i*7));
+      var wk = weekStart.getFullYear()+"-"+pad(weekStart.getMonth()+1)+"-"+pad(weekStart.getDate());
+      if(weeks[wk]){ streak++; } else if(i===0){ continue; } else { break; }
+    }
+    return streak;
+  }
+
+  function buildHeatmap(){
+    var days = 84;
+    var counts = {};
+    state.interactions.forEach(function(it){ var k=dayKey(it.date); counts[k]=(counts[k]||0)+1; });
+    var today = new Date();
+    var startOffset = today.getDay(); // align to full weeks (Sun start)
+    var totalCells = days + startOffset;
+    var cells = [];
+    for(var i=totalCells-1;i>=0;i--){
+      var d = new Date(today); d.setDate(today.getDate()-i);
+      if(d>today){ cells.push('<div class="heat-cell" style="background:transparent;"></div>'); continue; }
+      var k = d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+      var c = counts[k]||0;
+      var bg = c===0 ? "var(--card2)" : c===1 ? "#4c3a8f" : c===2 ? "#6d4fc7" : "#8b5cf6";
+      cells.push('<div class="heat-cell" title="'+k+': '+c+'" style="background:'+bg+';"></div>');
+    }
+    return cells.join("");
+  }
+
+  /* ---------- SETTINGS TAB ---------- */
+  function renderSettings(){
+    var html = '<h2 class="section-title">Data</h2><div class="card">'
+      + '<div class="row-between"><div><div class="row-title">Export backup</div><div class="row-sub">Save all data as a JSON file</div></div>'
+      + '<button class="iconbtn" data-action="export">⬇️</button></div></div>';
+
+    html += '<div class="card" style="margin-top:10px;"><div class="row-between"><div><div class="row-title">Import backup</div><div class="row-sub">Restore from a JSON file</div></div>'
+      + '<button class="iconbtn" data-action="import">⬆️</button></div>'
+      + '<input type="file" id="importFile" accept="application/json" class="hidden"></div>';
+
+    html += '<div class="card" style="margin-top:10px;"><div class="row-title">Storage</div>'
+      + '<div class="row-sub">'+state.people.length+' people · '+state.interactions.length+' interactions logged locally on this device.</div></div>';
+
+    html += '<h2 class="section-title">Danger zone</h2><div class="card">'
+      + '<button class="warn-btn" data-action="clear-all">Delete all data</button></div>';
+
+    html += '<h2 class="section-title">About</h2><div class="card muted small">'
+      + 'Circle keeps your data on this device only (no account, no cloud). Add this app to your Home Screen from Safari\'s Share menu for the best iPhone experience. Use Export regularly to back up your data.</div>';
+
+    return html;
+  }
+
+  /* ---------- event wiring ---------- */
+  function wireScreenEvents(){
+    var screen = document.getElementById("screen");
+    var searchInput = document.getElementById("searchInput");
+    if(searchInput){
+      searchInput.addEventListener("input", function(){ searchQuery = searchInput.value; render(); setTimeout(function(){
+        var el = document.getElementById("searchInput"); if(el){ el.focus(); el.selectionStart=el.selectionEnd=el.value.length; }
+      },0); });
+    }
+    screen.querySelectorAll("[data-action]").forEach(function(el){
+      el.addEventListener("click", function(){
+        var action = el.dataset.action, id = el.dataset.id;
+        if(action==="edit-interaction") openInteractionModal(id);
+        else if(action==="open-person"){ openPerson(id); }
+        else if(action==="open-person-from-stats"){ currentTab="people"; document.querySelectorAll(".navitem").forEach(function(n){n.classList.toggle("active", n.dataset.tab==="people");}); openPerson(id); }
+        else if(action==="back-people"){ selectedPersonId=null; render(); }
+        else if(action==="edit-person") openPersonModal(id);
+        else if(action==="export") exportData();
+        else if(action==="import") document.getElementById("importFile").click();
+        else if(action==="clear-all") clearAllData();
+      });
+    });
+    var importFile = document.getElementById("importFile");
+    if(importFile){ importFile.addEventListener("change", handleImport); }
+  }
+
+  /* ---------- export / import / clear ---------- */
+  function exportData(){
+    var blob = new Blob([JSON.stringify(state,null,2)], {type:"application/json"});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url; a.download = "circle-backup-"+nowLocalDate()+".json";
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+  function handleImport(e){
+    var file = e.target.files[0];
+    if(!file) return;
+    var reader = new FileReader();
+    reader.onload = function(){
+      try{
+        var data = JSON.parse(reader.result);
+        if(!data.people || !data.interactions) throw new Error("bad format");
+        if(confirm("Replace current data with the imported backup? This cannot be undone.")){
+          state = { people: data.people, interactions: data.interactions };
+          saveState(); render();
+          alert("Import complete.");
+        }
+      }catch(err){ alert("Could not read that file as a Circle backup."); }
+    };
+    reader.readAsText(file);
+  }
+  function clearAllData(){
+    if(confirm("Delete ALL people and interactions? This cannot be undone.")){
+      if(confirm("Are you absolutely sure? Consider exporting a backup first.")){
+        state = { people: [], interactions: [] };
+        saveState(); render();
+      }
+    }
+  }
+
+  /* ---------- modals: interaction ---------- */
+  function openInteractionModal(existingId, presetPersonId){
+    var existing = existingId ? state.interactions.find(function(i){return i.id===existingId;}) : null;
+    var selectedPeople = existing ? existing.personIds.slice() : (presetPersonId ? [presetPersonId] : []);
+    var selectedType = existing ? existing.type : "meetup";
+    var quality = existing ? (existing.quality||0) : 0;
+    var d = existing ? existing.date.split("T") : [nowLocalDate(), nowLocalTime()];
+    var addingNewPerson = false;
+
+    function draw(){
+      var peopleChips = state.people.map(function(p){
+        return '<button type="button" class="chip'+(selectedPeople.indexOf(p.id)>=0?' selected':'')+'" data-pid="'+p.id+'">'+escHtml(p.name)+'</button>';
+      }).join("") + '<button type="button" class="chip" id="newPersonChip">+ New person</button>';
+
+      var newPersonRow = addingNewPerson
+        ? '<div style="display:flex; gap:8px; margin-top:8px;">'
+          + '<input type="text" id="newPersonName" placeholder="Name" style="flex:1;">'
+          + '<button type="button" class="iconbtn" id="confirmNewPerson">✓</button>'
+          + '</div>'
+        : '';
+
+      var typeChips = TYPES.map(function(t){
+        return '<button type="button" class="chip'+(selectedType===t.id?' selected':'')+'" data-tid="'+t.id+'">'+t.icon+' '+t.label+'</button>';
+      }).join("");
+
+      var starHtml = "";
+      for(var s=1;s<=5;s++){ starHtml += '<span class="star'+(s<=quality?' on':'')+'" data-star="'+s+'">★</span>'; }
+
+      var body = ''
+        + '<div class="sheet-handle"></div>'
+        + '<div class="sheet-title">'+(existing?'Edit interaction':'Log interaction')+'</div>'
+        + '<label class="field-label">Who</label><div class="chiprow" id="peopleChips">'+peopleChips+'</div>'+newPersonRow
+        + '<label class="field-label">Type</label><div class="chiprow" id="typeChips">'+typeChips+'</div>'
+        + '<label class="field-label">Date</label><input type="date" id="intDate" value="'+d[0]+'">'
+        + '<label class="field-label">Time</label><input type="time" id="intTime" value="'+(d[1]?d[1].slice(0,5):nowLocalTime())+'">'
+        + '<label class="field-label">Duration (minutes, optional)</label><input type="number" id="intDuration" min="0" placeholder="e.g. 30" value="'+(existing&&existing.durationMin?existing.durationMin:"")+'">'
+        + '<label class="field-label">Quality (optional)</label><div class="stars" id="starRow">'+starHtml+'</div>'
+        + '<label class="field-label">Notes (optional)</label><textarea id="intNotes" placeholder="What did you talk about?">'+(existing?escHtml(existing.notes||""):"")+'</textarea>'
+        + '<button class="primary-btn" id="saveInteraction">Save</button>'
+        + (existing ? '<button class="warn-btn" id="deleteInteraction">Delete</button>' : '')
+        + '<button class="ghost-btn" id="cancelInteraction">Cancel</button>';
+
+      modalRoot().innerHTML = '<div class="overlay" id="overlay"><div class="sheet">'+body+'</div></div>';
+
+      document.getElementById("overlay").addEventListener("click", function(e){ if(e.target.id==="overlay") closeModal(); });
+      document.getElementById("cancelInteraction").addEventListener("click", closeModal);
+
+      function captureFields(){
+        return {
+          date: val("intDate"), time: val("intTime"), duration: val("intDuration"), notes: val("intNotes")
+        };
+        function val(id){ var el=document.getElementById(id); return el ? el.value : ""; }
+      }
+      function redrawKeepingFields(mutator){
+        var saved = captureFields();
+        mutator();
+        draw();
+        if(document.getElementById("intDate")) document.getElementById("intDate").value = saved.date;
+        if(document.getElementById("intTime")) document.getElementById("intTime").value = saved.time;
+        if(document.getElementById("intDuration")) document.getElementById("intDuration").value = saved.duration;
+        if(document.getElementById("intNotes")) document.getElementById("intNotes").value = saved.notes;
+      }
+
+      document.querySelectorAll("#peopleChips [data-pid]").forEach(function(el){
+        el.addEventListener("click", function(){
+          var pid = el.dataset.pid;
+          var idx = selectedPeople.indexOf(pid);
+          if(idx>=0) selectedPeople.splice(idx,1); else selectedPeople.push(pid);
+          el.classList.toggle("selected");
+        });
+      });
+      document.getElementById("newPersonChip").addEventListener("click", function(){
+        redrawKeepingFields(function(){ addingNewPerson = true; });
+        var inp = document.getElementById("newPersonName");
+        if(inp) inp.focus();
+      });
+      if(addingNewPerson){
+        var addNew = function(){
+          var inp = document.getElementById("newPersonName");
+          var name = inp ? inp.value.trim() : "";
+          redrawKeepingFields(function(){
+            if(name){
+              var p = { id: uid(), name: name, tag: "Friend", targetDays: DEFAULT_TARGET_DAYS, notes:"", createdAt: new Date().toISOString() };
+              state.people.push(p); saveState();
+              selectedPeople.push(p.id);
+            }
+            addingNewPerson = false;
+          });
+        };
+        document.getElementById("confirmNewPerson").addEventListener("click", addNew);
+        document.getElementById("newPersonName").addEventListener("keydown", function(e){ if(e.key==="Enter"){ e.preventDefault(); addNew(); } });
+      }
+      document.querySelectorAll("#typeChips [data-tid]").forEach(function(el){
+        el.addEventListener("click", function(){
+          selectedType = el.dataset.tid;
+          document.querySelectorAll("#typeChips [data-tid]").forEach(function(c){ c.classList.toggle("selected", c===el); });
+        });
+      });
+      document.querySelectorAll("#starRow .star").forEach(function(el){
+        el.addEventListener("click", function(){
+          var s = parseInt(el.dataset.star,10);
+          quality = (quality===s) ? 0 : s;
+          document.querySelectorAll("#starRow .star").forEach(function(st){
+            st.classList.toggle("on", parseInt(st.dataset.star,10)<=quality);
+          });
+        });
+      });
+      if(existing){
+        document.getElementById("deleteInteraction").addEventListener("click", function(){
+          if(confirm("Delete this interaction?")){
+            state.interactions = state.interactions.filter(function(i){ return i.id!==existing.id; });
+            saveState(); closeModal(); render();
+          }
+        });
+      }
+      document.getElementById("saveInteraction").addEventListener("click", function(){
+        if(selectedPeople.length===0){ alert("Select at least one person."); return; }
+        var date = document.getElementById("intDate").value || nowLocalDate();
+        var time = document.getElementById("intTime").value || nowLocalTime();
+        var duration = document.getElementById("intDuration").value;
+        var notes = document.getElementById("intNotes").value;
+        var record = {
+          id: existing ? existing.id : uid(),
+          personIds: selectedPeople.slice(),
+          type: selectedType,
+          date: combineDateTime(date, time),
+          durationMin: duration ? parseInt(duration,10) : null,
+          quality: quality || 0,
+          notes: notes.trim()
+        };
+        if(existing){
+          var idx = state.interactions.findIndex(function(i){return i.id===existing.id;});
+          state.interactions[idx] = record;
+        } else {
+          state.interactions.push(record);
+        }
+        saveState(); closeModal(); render();
+      });
+    }
+    draw();
+  }
+
+  /* ---------- modals: person ---------- */
+  function openPersonModal(existingId){
+    var existing = existingId ? getPerson(existingId) : null;
+    var selectedTag = existing ? existing.tag : "Friend";
+
+    function draw(){
+      var tagChips = TAGS.map(function(t){
+        return '<button type="button" class="chip'+(selectedTag===t?' selected':'')+'" data-tag="'+t+'">'+t+'</button>';
+      }).join("");
+
+      var body = ''
+        + '<div class="sheet-handle"></div>'
+        + '<div class="sheet-title">'+(existing?'Edit person':'Add person')+'</div>'
+        + '<label class="field-label">Name</label><input type="text" id="pName" placeholder="e.g. Alex Kim" value="'+(existing?escAttr(existing.name):"")+'">'
+        + '<label class="field-label">Relationship</label><div class="chiprow" id="tagChips">'+tagChips+'</div>'
+        + '<label class="field-label">Target contact frequency (days)</label><input type="number" id="pTarget" min="1" value="'+(existing?existing.targetDays||DEFAULT_TARGET_DAYS:DEFAULT_TARGET_DAYS)+'">'
+        + '<label class="field-label">Notes (optional)</label><textarea id="pNotes" placeholder="Birthday, interests, how you met...">'+(existing?escHtml(existing.notes||""):"")+'</textarea>'
+        + '<button class="primary-btn" id="savePerson">Save</button>'
+        + (existing ? '<button class="warn-btn" id="deletePerson">Delete person</button>' : '')
+        + '<button class="ghost-btn" id="cancelPerson">Cancel</button>';
+
+      modalRoot().innerHTML = '<div class="overlay" id="overlay"><div class="sheet">'+body+'</div></div>';
+      document.getElementById("overlay").addEventListener("click", function(e){ if(e.target.id==="overlay") closeModal(); });
+      document.getElementById("cancelPerson").addEventListener("click", closeModal);
+      document.querySelectorAll("#tagChips [data-tag]").forEach(function(el){
+        el.addEventListener("click", function(){
+          selectedTag = el.dataset.tag;
+          document.querySelectorAll("#tagChips [data-tag]").forEach(function(c){ c.classList.toggle("selected", c===el); });
+        });
+      });
+      if(existing){
+        document.getElementById("deletePerson").addEventListener("click", function(){
+          var count = personInteractions(existing.id).length;
+          var msg = count>0 ? ("Delete "+existing.name+"? "+count+" logged interaction(s) will also be removed or updated.") : ("Delete "+existing.name+"?");
+          if(confirm(msg)){
+            state.people = state.people.filter(function(p){ return p.id!==existing.id; });
+            state.interactions.forEach(function(it){ it.personIds = it.personIds.filter(function(pid){ return pid!==existing.id; }); });
+            state.interactions = state.interactions.filter(function(it){ return it.personIds.length>0; });
+            saveState(); closeModal(); selectedPersonId=null; render();
+          }
+        });
+      }
+      document.getElementById("savePerson").addEventListener("click", function(){
+        var name = document.getElementById("pName").value.trim();
+        if(!name){ alert("Please enter a name."); return; }
+        var target = parseInt(document.getElementById("pTarget").value,10) || DEFAULT_TARGET_DAYS;
+        var notes = document.getElementById("pNotes").value.trim();
+        if(existing){
+          existing.name = name; existing.tag = selectedTag; existing.targetDays = target; existing.notes = notes;
+        } else {
+          state.people.push({ id: uid(), name: name, tag: selectedTag, targetDays: target, notes: notes, createdAt: new Date().toISOString() });
+        }
+        saveState(); closeModal(); render();
+      });
+    }
+    draw();
+  }
+
+  function modalRoot(){ return document.getElementById("modalRoot"); }
+  function closeModal(){ modalRoot().innerHTML = ""; }
+
+  /* ---------- utils ---------- */
+  function escHtml(s){
+    return String(s==null?"":s).replace(/[&<>"']/g, function(c){
+      return ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c];
+    });
+  }
+  function escAttr(s){ return escHtml(s); }
+
+  /* ---------- service worker ---------- */
+  if("serviceWorker" in navigator){
+    window.addEventListener("load", function(){
+      navigator.serviceWorker.register("sw.js").catch(function(){});
+    });
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>
