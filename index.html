@@ -373,7 +373,7 @@
     return '<div class="list-row" data-action="open-person" data-id="'+p.id+'">'
       + '<div class="avatar">'+initials(p.name)+'</div>'
       + '<div style="flex:1; min-width:0;">'
-        + '<div class="row-title">'+escHtml(p.name)+' <span class="tag-badge tag-'+p.tag+'">'+p.tag+'</span></div>'
+        + '<div class="row-title">'+escHtml(p.name)+' <span class="tag-badge tag-'+escAttr(p.tag)+'">'+escHtml(p.tag)+'</span></div>'
         + '<div class="row-sub">'+sub+'</div>'
       + '</div>'
       + (overdue ? '<div class="overdue-dot" title="Overdue"></div>' : '')
@@ -398,7 +398,7 @@
     html += '<div class="card" style="text-align:center; padding:20px 14px;">'
       + '<div class="avatar" style="width:64px;height:64px;font-size:22px;margin:0 auto 10px;">'+initials(p.name)+'</div>'
       + '<div style="font-size:19px;font-weight:800;">'+escHtml(p.name)+'</div>'
-      + '<div class="tag-badge tag-'+p.tag+'" style="margin-top:6px; display:inline-block;">'+p.tag+'</div>'
+      + '<div class="tag-badge tag-'+escAttr(p.tag)+'" style="margin-top:6px; display:inline-block;">'+escHtml(p.tag)+'</div>'
       + (p.notes ? '<div class="muted small" style="margin-top:10px;">'+escHtml(p.notes)+'</div>' : '')
       + '</div>';
 
